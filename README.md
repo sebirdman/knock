@@ -12,11 +12,15 @@ On the back of my tektone (add images later) there are four wires labeled
 These wires when connected result in differet outcomes. Below are those outcomes
 
 1 - positive node of RCA jack 
+
 X - negative ndoe of RCA jack
+
 (reverse for talk output to main hub)
 
 3 + 2 = Door Button
+
 3 + X = Listen button
+
 2 + X = Talk button
 
 

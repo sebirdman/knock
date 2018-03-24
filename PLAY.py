@@ -1,18 +1,5 @@
 #!/usr/bin/env python
 
-## playbacktest.py
-##
-## This is an example of a simple sound playback script.
-##
-## The script opens an ALSA pcm for sound playback. Set
-## various attributes of the device. It then reads data
-## from stdin and writes it to the device.
-##
-## To test it out do the following:
-## python recordtest.py out.raw # talk to the microphone
-## python playbacktest.py out.raw
-
-
 from __future__ import print_function
 
 from pydub import AudioSegment

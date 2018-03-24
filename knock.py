@@ -12,6 +12,7 @@ import getopt
 import alsaaudio
 import RPi.GPIO as GPIO
 import atexit
+import wave
 import math
 
 app = Flask(__name__)
@@ -21,6 +22,7 @@ class SoundArgs(object):
    def __init__(self):
        self.is_playing = False
        self.pushed = False
+       self.fake = False
 
    def door_pushed(self):
        self.pushed = True
@@ -33,6 +35,12 @@ class SoundArgs(object):
 
    def stop(self):
        self.is_playing = False
+
+   def thisistestStart(self):
+       self.fake = True
+
+   def thisistestStop(self):
+       self.fake = False
 
 
 @app.route("/")
@@ -49,6 +57,13 @@ def toggle(what):
            playArgs.play()
        return "Toggled sound {}".format(playArgs.is_playing)
 
+    if what == "fake":
+       if playArgs.fake:
+           playArgs.thisistestStop()
+           return "Stopped fake door"
+       else:
+           playArgs.thisistestStart()
+           return "Started fake door"
 
     return "unhandled toggle"
 
@@ -71,21 +86,23 @@ def audio(args):
     mix.setvolume(100, alsaaudio.PCM_CAPTURE)
 
     # Open the device in playback mode.
-    out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, alsaaudio.PCM_NONBLOCK, device=device)
+    # out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, alsaaudio.PCM_NONBLOCK, device=device)
     inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE, alsaaudio.PCM_NONBLOCK, device=device)
-    out.setformat(format)
+
     inp.setformat(format)
-    out.setchannels(channel)
     inp.setchannels(channel)
-    out.setrate(rate)
     inp.setrate(rate)
     inp.setperiodsize(periodSize)
-    out.setperiodsize(periodSize)
+
+    # out.setformat(format)
+    # out.setchannels(channel)
+    # out.setrate(rate)
+    # out.setperiodsize(periodSize)
 
     GPIO.setmode(GPIO.BCM)
 
     should_listen_door = True
-
+    alarmFile = wave.open('./alarm.wav', 'rb')
 
     while True:
         l, data = inp.read()
@@ -96,7 +113,49 @@ def audio(args):
                 print("Door was pressed with {}".format(sound.dBFS))
             if args.is_playing:
                 out.write(sound.raw_data)
+            if args.fake:
+                print('outputting data');
+                play(alarmFile, args)
             f.write(data)
+
+
+
+def play(f, args):
+    f.rewind()
+    device = 'default'
+
+    device = alsaaudio.PCM(device=device)
+
+    print('%d channels, %d sampling rate\n' % (f.getnchannels(),
+                                               f.getframerate()))
+    # Set attributes
+    device.setchannels(f.getnchannels())
+    device.setrate(f.getframerate())
+
+    # 8bit is unsigned in wav files
+    if f.getsampwidth() == 1:
+        device.setformat(alsaaudio.PCM_FORMAT_U8)
+    # Otherwise we assume signed data, little endian
+    elif f.getsampwidth() == 2:
+        device.setformat(alsaaudio.PCM_FORMAT_S16_LE)
+    elif f.getsampwidth() == 3:
+        device.setformat(alsaaudio.PCM_FORMAT_S24_3LE)
+    elif f.getsampwidth() == 4:
+        device.setformat(alsaaudio.PCM_FORMAT_S32_LE)
+    else:
+        raise ValueError('Unsupported format')
+
+    periodsize = f.getframerate() / 8
+
+    device.setperiodsize(periodsize)
+
+    data = f.readframes(periodsize)
+    while data:
+        if args.fake:
+            print('writing sound')
+            # Read data from stdin
+            device.write(data)
+            data = f.readframes(periodsize)
 
 #def start_listen():
     # listen = 26

@@ -88,75 +88,64 @@ def audio(args):
     # Open the device in playback mode.
     # out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, alsaaudio.PCM_NONBLOCK, device=device)
     inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE, alsaaudio.PCM_NONBLOCK, device=device)
-
     inp.setformat(format)
     inp.setchannels(channel)
     inp.setrate(rate)
     inp.setperiodsize(periodSize)
-
-    # out.setformat(format)
-    # out.setchannels(channel)
-    # out.setrate(rate)
-    # out.setperiodsize(periodSize)
 
     GPIO.setmode(GPIO.BCM)
 
     should_listen_door = True
     alarmFile = wave.open('./alarm.wav', 'rb')
 
-    while True:
-        l, data = inp.read()
-
-        if l:
-            sound = AudioSegment(data, sample_width=4, channels=1, frame_rate=44100)
-            if sound.dBFS > -8:
-                print("Door was pressed with {}".format(sound.dBFS))
-            if args.is_playing:
-                out.write(sound.raw_data)
-            if args.fake:
-                print('outputting data');
-                play(alarmFile, args)
-            f.write(data)
-
-
-
-def play(f, args):
-    f.rewind()
     device = 'default'
-
     device = alsaaudio.PCM(device=device)
 
-    print('%d channels, %d sampling rate\n' % (f.getnchannels(),
-                                               f.getframerate()))
     # Set attributes
-    device.setchannels(f.getnchannels())
-    device.setrate(f.getframerate())
+    device.setchannels(alarmFile.getnchannels())
+    device.setrate(alarmFile.getframerate())
 
     # 8bit is unsigned in wav files
-    if f.getsampwidth() == 1:
+    if alarmFile.getsampwidth() == 1:
         device.setformat(alsaaudio.PCM_FORMAT_U8)
     # Otherwise we assume signed data, little endian
-    elif f.getsampwidth() == 2:
+    elif alarmFile.getsampwidth() == 2:
         device.setformat(alsaaudio.PCM_FORMAT_S16_LE)
-    elif f.getsampwidth() == 3:
+    elif alarmFile.getsampwidth() == 3:
         device.setformat(alsaaudio.PCM_FORMAT_S24_3LE)
-    elif f.getsampwidth() == 4:
+    elif alarmFile.getsampwidth() == 4:
         device.setformat(alsaaudio.PCM_FORMAT_S32_LE)
     else:
         raise ValueError('Unsupported format')
 
-    periodsize = f.getframerate() / 8
+    periodsize = alarmFile.getframerate() / 8
 
     device.setperiodsize(periodsize)
 
-    data = f.readframes(periodsize)
-    while data:
-        if args.fake:
-            print('writing sound')
-            # Read data from stdin
-            device.write(data)
-            data = f.readframes(periodsize)
+    alarmData = alarmFile.readframes(periodsize)
+    while True:
+        l, data = inp.read()
 
+        if l:
+            try:
+                sound = AudioSegment(data, sample_width=4, channels=1, frame_rate=44100)
+                if sound.dBFS > -8:
+                    device.write(alarmData)
+                    alarmData = alarmFile.readframes(periodsize)
+                    print("Door was pressed with {}".format(sound.dBFS))
+                    if not data:
+                        alarmFile.rewind()
+                        data = alarmFile.readframes(periodsize)
+                if args.fake:
+                    device.write(alarmData)
+                    alarmData = alarmFile.readframes(periodsize)
+                    if not alarmData:
+                        alarmFile.rewind()
+                        data = alarmFile.readframes(periodsize)
+            except:
+                print("Something crashed in the loop")
+            f.write(data)
+             
 #def start_listen():
     # listen = 26
 #    GPIO.setup(26, GPIO.OUT)

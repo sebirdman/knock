@@ -21,14 +21,16 @@ app = Flask(__name__)
 class SoundArgs(object):
    def __init__(self):
        self.is_playing = False
-       self.pushed = False
+       self.doorOpen = False
        self.fake = False
 
-   def door_pushed(self):
-       self.pushed = True
+   def openDoor(self):
+       GPIO.output(16, GPIO.LOW)
+       self.doorOpen = True
 
-   def door_unpushed(self):
-       self.pushed = False;
+   def closeDoor(self):
+       GPIO.output(16, GPIO.HIGH)
+       self.doorOpen = False;
 
    def play(self):
        self.is_playing = True
@@ -56,6 +58,13 @@ def toggle(what):
        else:
            playArgs.play()
        return "Toggled sound {}".format(playArgs.is_playing)
+
+    if what == "door":
+       if playArgs.doorOpen:
+           playArgs.closeDoor()
+       else:
+           playArgs.openDoor()
+       return "Toggled door {}".format(playArgs.doorOpen)
 
     if what == "fake":
        if playArgs.fake:
@@ -93,7 +102,7 @@ def audio(args):
     inp.setrate(rate)
     inp.setperiodsize(periodSize)
 
-    GPIO.setmode(GPIO.BCM)
+    setupGPIO()
 
     should_listen_door = True
     alarmFile = wave.open('./alarm.wav', 'rb')
@@ -145,26 +154,13 @@ def audio(args):
             except:
                 print("Something crashed in the loop")
             f.write(data)
-             
-#def start_listen():
-    # listen = 26
-#    GPIO.setup(26, GPIO.OUT)
-#    GPIO.output(26, GPIO.LOW)
 
-#def stop_listen():
-#    GPIO.output(listen, gpio.HIGH)
-
-#def start_door():
-#    # gpio = 16
-#    GPIO.setup(16, GPIO.OUT)
-#    GPIO.output(16, GPIO.LOW)
-
-#def stop_door():
-#    GPIO.output(16, GPIO.HIGH)
-
-#def play_alarm():
-    # AudioSegment(data, sample_width=4, channels=1, frame_rate=44100)
-#    print("play alarm")
+def setupGPIO():
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(16, GPIO.OUT)
+    GPIO.setup(26, GPIO.OUT)
+    GPIO.output(26, GPIO.HIGH) # LISTEN
+    GPIO.output(16, GPIO.HIGH) # DOOR
 
 @atexit.register
 def goodbye():
